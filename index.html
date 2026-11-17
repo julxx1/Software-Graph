@@ -84,6 +84,8 @@ ul.rel button:focus-visible{outline:2px solid var(--accent)}
   <div class="seg" role="group" aria-label="Vista del grafo"><button id="b2d" type="button" aria-pressed="false">2D</button><button id="b3d" type="button" aria-pressed="true">3D</button></div>
   <div class="search"><input id="q" type="search" placeholder="Buscar nodo o texto…" aria-label="Buscar en el grafo" autocomplete="off"></div>
   <div class="btns">
+    <button class="btn" id="fsm" type="button" aria-label="Texto más pequeño" title="Texto más pequeño">A−</button>
+    <button class="btn" id="fsp" type="button" aria-label="Texto más grande" title="Texto más grande">A+</button>
     <button class="btn" id="rot" type="button" aria-pressed="true">Rotar</button>
     <button class="btn" id="fit" type="button">Ajustar vista</button>
     <button class="btn" id="relayout" type="button">Reordenar</button>
@@ -6100,7 +6102,9 @@ ALT.g_rev=[GEN.rev,GEN.revpdf];
 
 /* ---------- Estado, tamaños, vecinos ---------- */
 const idOf=x=>typeof x==='object'?x.id:x;
-const S={view:'3d',sel:null,hover:null,query:'',hidden:new Set()};
+const S={view:'3d',sel:null,hover:null,query:'',hidden:new Set(),fs:1.4};
+try{const v=parseFloat(localStorage.getItem('fs'));if(v>=.8&&v<=2.6)S.fs=v;}catch(e){}
+const fs2=d=>(d.root?15:(d.g==='seccion'||d.file)?13:12)*S.fs;
 const deg={};links.forEach(l=>{deg[l.source]=(deg[l.source]||0)+1;deg[l.target]=(deg[l.target]||0)+1;});
 nodes.forEach(n=>{
   const base={proyecto:9,seccion:7,persona:10,mercado:8,oferta:8,embudo:7,riesgo:7,pendiente:6,decision:7,mapa:6,memoria:8,archivo:6}[n.g]||7;
@@ -6132,7 +6136,7 @@ const V2={ready:false,
       const g=D.select(this);
       if(d.file||d.root||d.box)g.append('rect').attr('class','shape').attr('x',-d.rad).attr('y',-d.rad).attr('width',d.rad*2).attr('height',d.rad*2).attr('rx',d.root?6:3);
       else g.append('circle').attr('class','shape').attr('r',d.rad);
-      g.append('text').attr('class','lb').attr('y',d.rad+13).attr('text-anchor','middle').style('font-size',d.root?'14px':(d.g==='seccion'||d.file)?'12px':'11px').style('font-weight',d.root||d.file?'700':'500').text(d.l);
+      g.append('text').attr('class','lb').attr('text-anchor','middle').style('font-weight',d.root||d.file?'700':'500').text(d.l);
       if(d.flag){const b=g.append('g').attr('class','badge').attr('transform','translate('+(d.rad*.8)+','+(-d.rad*.8)+')');b.append('circle').attr('r',7);b.append('text').text('!');}
     });
     const ticked=()=>{this.link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);this.node.attr('transform',d=>'translate('+d.x+','+d.y+')');};
@@ -6142,8 +6146,9 @@ const V2={ready:false,
     this.node.on('mouseenter',(e,d)=>hoverNode(d.id)).on('mouseleave',()=>hoverNode(null)).on('click',(e,d)=>{e.stopPropagation();selectNode(d.id,false);})
       .on('keydown',(e,d)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectNode(d.id,false);}});
     svg.on('click',()=>clearSel());
-    this.ready=true; this.fit(0);
+    this.ready=true; this.applyFs(); this.fit(0);
   },
+  applyFs(){this.node.select('text.lb').style('font-size',d=>fs2(d)+'px').attr('y',d=>d.rad+fs2(d)*.95);},
   show(){this.fit(0);},
   size(){return [this.host.clientWidth,this.host.clientHeight];},
   fit(ms){
@@ -6162,7 +6167,9 @@ const V2={ready:false,
 };
 
 /* ---------- Vista 3D ---------- */
+const fs3=n=>n.root?8:(n.file||n.g==='seccion')?5:4.4;
 const V3={ready:false,fitted:false,
+  applyFs(){if(!this.ready)return;this.N.forEach(n=>{if(n.__sp){n.__sp.textHeight=fs3(n)*S.fs;n.__sp.position.y=-(n.__r+n.__sp.textHeight*.6+1.2);}});},
   init(){
     const host=$('v3d'); this.host=host;
     try{
@@ -6171,8 +6178,8 @@ const V3={ready:false,fitted:false,
         const r=n.rad*.42,g=new T.Group(),mats=[];
         const geo=(n.file||n.root||n.box)?new T.BoxGeometry(r*1.7,r*1.7,r*1.7):new T.SphereGeometry(r,20,16);
         const m=new T.MeshLambertMaterial({color:COL[n.g],transparent:true,opacity:n.pd?.9:.95,wireframe:!!n.pd}); g.add(new T.Mesh(geo,m)); mats.push(m);
-        const s=new SpriteText(n.l,n.root?6:(n.file||n.g==='seccion')?3.6:3.1,n.root||n.file?'#ffffff':n.g==='archivo'?'#e3efae':'#d5d9e0');
-        s.fontFace='Schibsted Grotesk, system-ui, sans-serif'; s.fontWeight=(n.root||n.file)?'700':'500'; s.material.depthWrite=false; s.position.y=-(r+3.4); s.renderOrder=2; g.add(s); mats.push(s.material);
+        const s=new SpriteText(n.l,fs3(n)*S.fs,n.root||n.file?'#ffffff':n.g==='archivo'?'#e3efae':'#d5d9e0');
+        s.fontFace='Schibsted Grotesk, system-ui, sans-serif'; s.fontWeight=(n.root||n.file)?'700':'500'; s.material.depthWrite=false; s.position.y=-(r+s.textHeight*.6+1.2); s.renderOrder=2; n.__sp=s; n.__r=r; g.add(s); mats.push(s.material);
         if(n.flag){const bm=new T.MeshBasicMaterial({color:'#ffc933',transparent:true});const b=new T.Mesh(new T.SphereGeometry(1.5,12,10),bm);b.position.set(r*.9,r*.9,0);g.add(b);mats.push(bm);}
         n.__mats=mats; return g;
       };
@@ -6304,6 +6311,8 @@ const qi=$('q');
 qi.addEventListener('input',()=>{S.query=qi.value.trim();refreshAll();});
 qi.addEventListener('keydown',e=>{if(e.key==='Enter'){const m=matches();if(m&&m.size){const f=nodes.find(n=>m.has(n.id)&&!S.hidden.has(n.g));if(f)selectNode(f.id,true);}}});
 $('rot').onclick=()=>{if(!V3.ready)return;const c=V3.G.controls();c.autoRotate=!c.autoRotate;$('rot').setAttribute('aria-pressed',String(c.autoRotate));};
+const bumpFs=m=>{S.fs=Math.max(.8,Math.min(2.6,+(S.fs*m).toFixed(3)));try{localStorage.setItem('fs',S.fs);}catch(e){}V2.ready&&V2.applyFs();V3.ready&&V3.applyFs();};
+$('fsm').onclick=()=>bumpFs(1/1.2); $('fsp').onclick=()=>bumpFs(1.2);
 $('fit').onclick=()=>VIEWS[S.view].fit(500);
 $('relayout').onclick=()=>VIEWS[S.view].relayout();
 showHome();
