@@ -24,6 +24,7 @@ h1{font-size:16px;font-weight:700;margin:0;letter-spacing:-.01em;text-wrap:balan
 button{font:inherit;color:var(--ink);cursor:pointer}
 .btn{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 .btn:hover{border-color:var(--accent)}
+.btn:disabled{opacity:.35;cursor:default;border-color:var(--line)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#0b1220;font-weight:600}
 .btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -81,6 +82,7 @@ ul.rel button:focus-visible{outline:2px solid var(--accent)}
 <header>
   <h1>Mapa del proyecto Software</h1>
   <span class="stats" id="stats"></span>
+  <button class="btn" id="back" type="button" aria-label="Volver al nodo anterior" title="Volver (Alt + ←)" disabled>←</button>
   <div class="seg" role="group" aria-label="Vista del grafo"><button id="b2d" type="button" aria-pressed="false">2D</button><button id="b3d" type="button" aria-pressed="true">3D</button></div>
   <div class="search"><input id="q" type="search" placeholder="Buscar nodo o texto…" aria-label="Buscar en el grafo" autocomplete="off"></div>
   <div class="btns">
@@ -6259,8 +6261,11 @@ const VIEWS={'2d':V2,'3d':V3};
 /* ---------- Selección y panel ---------- */
 function hoverNode(id){S.hover=id;refreshAll();}
 function refreshAll(){V2.ready&&V2.refresh();V3.ready&&V3.refresh();}
-function clearSel(){S.sel=null;showHome();refreshAll();}
-function selectNode(id,fly){S.sel=id;renderPanel(byId[id]);refreshAll();if(fly)VIEWS[S.view].focus(id);}
+S.hist=[];
+function updBack(){const b=$('back');if(b)b.disabled=!S.hist.length;}
+function clearSel(skip){if(!skip&&S.sel)S.hist.push(S.sel);S.sel=null;showHome();refreshAll();updBack();}
+function selectNode(id,fly,skip){if(!skip&&S.sel&&S.sel!==id)S.hist.push(S.sel);S.sel=id;renderPanel(byId[id]);refreshAll();if(fly)VIEWS[S.view].focus(id);updBack();}
+function goBack(){if(!S.hist.length)return;const p=S.hist.pop();if(p&&byId[p])selectNode(p,true,true);else clearSel(true);updBack();}
 const panel=$('panel');
 const EXT_LABEL={md:'MD',pdf:'PDF',docx:'DOCX',txt:'TXT',html:'HTML',json:'JSON',csv:'CSV',jpg:'JPG',zip:'ZIP'};
 const CAN_FILE=location.protocol==='file:';
@@ -6330,6 +6335,7 @@ function setView(v){
   V.refresh&&V.refresh();
   try{history.replaceState(null,'','#'+v);}catch(e){}
 }
+$('back').onclick=goBack; addEventListener('keydown',e=>{if(e.altKey&&e.key==='ArrowLeft'){e.preventDefault();goBack();}});
 $('b2d').onclick=()=>setView('2d'); $('b3d').onclick=()=>setView('3d');
 const legend=$('legend');
 Object.keys(GROUPS).forEach(g=>{
