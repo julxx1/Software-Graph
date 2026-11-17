@@ -5957,14 +5957,15 @@ function toHTML(B,title){
 
 /* ---------- PDF (jsPDF) ---------- */
 function san(s){return String(s).replace(/[→]/g,'->').replace(/[←]/g,'<-').replace(/[—–]/g,'-').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/…/g,'...').replace(/[^\u0000-ÿ]/g,'');}
-function toPDF(B,title,imgs){
-  const doc=new jsPDF({unit:'mm',format:'a4'}); const M=18,TW=210-2*M; let y=20;
-  const ensure=h=>{if(y+h>282){doc.addPage();y=20;}};
+function toPDF(B,title,imgs,land){
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:land?'landscape':'portrait'}); const PW=land?297:210,PH=land?210:297,M=land?14:18,TW=PW-2*M; let y=20;
+  const ensure=h=>{if(y+h>PH-15){doc.addPage();y=20;}};
   function txt(s,size,style,ind,color,after){
     doc.setFont('helvetica',style||'normal');doc.setFontSize(size);doc.setTextColor.apply(doc,color||[29,32,38]);
     const lh=size*.3528*1.4; doc.splitTextToSize(san(s),TW-(ind||0)).forEach(l=>{ensure(lh);doc.text(l,M+(ind||0),y);y+=lh;}); y+=(after==null?1.5:after);
   }
   B.forEach(b=>{
+    if(b.t==='pb'){doc.addPage();y=20;return;}
     if(b.t==='h'){y+=b.n===1?2:5;ensure(14);txt(plain(b.x),[0,20,15,13,12][b.n],'bold',0,b.n===1?[20,24,30]:[31,111,209],2);
       if(b.n<=2){doc.setDrawColor(210,210,205);doc.line(M,y-1,M+TW,y-1);y+=2;}}
     else if(b.t==='p')txt(plain(b.x),10.5,'normal',0,null,2.5);
@@ -5972,19 +5973,20 @@ function toPDF(B,title,imgs){
     else if(b.t==='ul')b.it.forEach(x=>{ensure(6);doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.text('•',M+2,y);txt(plain(x),10.5,'normal',7,null,1);}),y+=1.5;
     else if(b.t==='ol')b.it.forEach((x,k)=>{ensure(6);doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.text((k+1)+'.',M+1,y);txt(plain(x),10.5,'normal',7,null,1);}),y+=1.5;
     else if(b.t==='tb'){
-      const nc=Math.max(...b.rows.map(r=>r.length)),cw=TW/nc;
+      const nc=Math.max(...b.rows.map(r=>r.length));
+      const wt=Array.from({length:nc},(_,j)=>Math.min(70,Math.max(14,...b.rows.map(r=>plain(r[j]||'').length)))), ws0=wt.reduce((s,x)=>s+x,0), ws=wt.map(x=>TW*x/ws0), xs=ws.map((_,j)=>ws.slice(0,j).reduce((s,x)=>s+x,0));
       b.rows.forEach((r,k)=>{
         doc.setFont('helvetica',k?'normal':'bold');doc.setFontSize(9.5);
-        const cells=r.map(c=>doc.splitTextToSize(san(plain(c)),cw-4)); const lines=Math.max(...cells.map(c=>c.length)); const h=lines*4.4+3;
+        const cells=Array.from({length:nc},(_,j)=>doc.splitTextToSize(san(plain(r[j]||'')),ws[j]-4)); const lines=Math.max(...cells.map(c=>c.length)); const h=lines*4.4+3;
         ensure(h); if(!k){doc.setFillColor(241,241,238);doc.rect(M,y-4,TW,h,'F');}
-        cells.forEach((c,j)=>{doc.setDrawColor(200,200,195);doc.rect(M+j*cw,y-4,cw,h);doc.setTextColor(29,32,38);c.forEach((ln,q)=>doc.text(ln,M+j*cw+2,y+q*4.4));});
+        cells.forEach((c,j)=>{doc.setDrawColor(200,200,195);doc.rect(M+xs[j],y-4,ws[j],h);doc.setTextColor(29,32,38);c.forEach((ln,q)=>doc.text(ln,M+xs[j]+2,y+q*4.4));});
         y+=h;
       }); y+=3;
     }
     else if(b.t==='pre'){doc.setFont('courier','normal');doc.setFontSize(8.5);doc.setTextColor(80,80,80);b.lines.forEach(l=>{doc.splitTextToSize(san(l),TW).forEach(s=>{ensure(4);doc.text(s,M,y);y+=3.8;});});y+=3;}
   });
   (imgs||[]).forEach(im=>{doc.addPage();y=20;const pr=doc.getImageProperties(im);const w=TW,h=Math.min(w*pr.height/pr.width,250);doc.addImage(im,'JPEG',M,y,h*pr.width/pr.height>w?w:h*pr.width/pr.height,h);});
-  const n=doc.getNumberOfPages();for(let p=1;p<=n;p++){doc.setPage(p);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(140,140,140);doc.text(san(title),M,291);doc.text(p+' / '+n,210-M,291,{align:'right'});}
+  const n=doc.getNumberOfPages();for(let p=1;p<=n;p++){doc.setPage(p);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(140,140,140);doc.text(san(title),M,PH-6);doc.text(p+' / '+n,PW-M,PH-6,{align:'right'});}
   return doc.output('blob');
 }
 function imagePDF(title,dataUri){
@@ -6047,14 +6049,14 @@ const FILES={};            // id de nodo -> definición
 const enc=new TextEncoder();
 const dataUri='data:image/jpeg;base64,'+IMG64;
 const b64u8=()=>Uint8Array.from(atob(IMG64),c=>c.charCodeAt(0));
-function textDef(name,mime,get,kind){return {name,mime,kind:kind||name.split('.').pop(),text:true,make:()=>get(),get};}
+function textDef(name,mime,get,kind,blocks){return {name,mime,kind:kind||name.split('.').pop(),text:true,make:()=>get(),get,blocks};}
 function binDef(name,mime,make,kind){return {name,mime,kind:kind||name.split('.').pop(),text:false,make};}
 function docFormats(key){
   const d=PROJDOCS[key], B=()=>parseMD(d.text), base=d.base, title=d.title;
   return {
-    md:textDef(base+'.md','text/markdown',()=>d.text),
-    txt:textDef(base+'.txt','text/plain',()=>toTXT(B())),
-    html:textDef(base+'.html','text/html',()=>toHTML(B(),title)),
+    md:textDef(base+'.md','text/markdown',()=>d.text,'md',B),
+    txt:textDef(base+'.txt','text/plain',()=>toTXT(B()),'txt',B),
+    html:textDef(base+'.html','text/html',()=>toHTML(B(),title),'html',B),
     pdf:binDef(base+'.pdf','application/pdf',()=>toPDF(B(),title)),
     docx:binDef(base+'.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document',()=>new Blob([toDOCX(B())],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}))
   };
@@ -6066,7 +6068,7 @@ const GEN={
   nodos:textDef('nodos.csv','text/csv',genNodosCSV),
   rel:textDef('relaciones.csv','text/csv',genRelCSV),
   pend:textDef('pendientes.csv','text/csv',genPendCSV),
-  rev:textDef('a-revisar.md','text/markdown',genRevMD),
+  rev:textDef('a-revisar.md','text/markdown',genRevMD,'md',()=>parseMD(genRevMD())),
   revpdf:binDef('a-revisar.pdf','application/pdf',()=>toPDF(parseMD(genRevMD()),'Puntos a revisar: proyecto Software'))
 };
 GEN.zip=binDef('proyecto-completo.zip','application/zip',()=>{
@@ -6075,10 +6077,38 @@ GEN.zip=binDef('proyecto-completo.zip','application/zip',()=>{
   const jobs=[];
   ['ctx','inst','desc','mem'].forEach(k=>['md','pdf','docx'].forEach(f=>{const def=FMT[k][f];jobs.push(Promise.resolve(def.make()).then(async v=>put(def.name,typeof v==='string'?v:new Uint8Array(await v.arrayBuffer()))));}));
   put('mapa-mental.jpg',b64u8());
+  jobs.push(Promise.resolve(GEN.allpdf.make()).then(async v=>put('proyecto-completo.pdf',new Uint8Array(await v.arrayBuffer()))));
   ['json','nodos','rel','pend','rev'].forEach(k=>put(GEN[k].name,GEN[k].get()));
   jobs.push(Promise.resolve(GEN.revpdf.make()).then(async v=>put('a-revisar.pdf',new Uint8Array(await v.arrayBuffer()))));
   return Promise.all(jobs).then(()=>new Blob([zipSync(z)],{type:'application/zip'}));
 });
+
+
+/* ---------- PDF para cualquier archivo de texto ---------- */
+function parseCSV(t){const rows=[];let r=[],c='',q=false;t=t.replace(/^\uFEFF/,'');for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++;}else q=false;}else c+=ch;}else if(ch==='"')q=true;else if(ch===','){r.push(c);c='';}else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;r.push(c);c='';rows.push(r);r=[];}else c+=ch;}if(c||r.length){r.push(c);rows.push(r);}return rows.filter(x=>x.length>1||x[0]);}
+function pdfOf(def){
+  if(def.__pdf)return def.__pdf;
+  const stem=def.name.replace(/\.[^.]+$/,''), title=def.name;
+  let name=def.kind==='md'?stem+'.pdf':stem+'-'+def.kind+'.pdf', make;
+  if(def.blocks)make=()=>toPDF(def.blocks(),title);
+  else if(def.kind==='csv')make=()=>toPDF([{t:'h',n:1,x:title},{t:'tb',rows:parseCSV(def.get())}],title,null,true);
+  else make=()=>toPDF([{t:'h',n:1,x:title},{t:'pre',lines:String(def.get()).split('\n')}],title);
+  return def.__pdf=binDef(name,'application/pdf',make,'pdf');
+}
+function fichaDef(n){
+  const rel=[],rin=[];links.forEach(l=>{if(idOf(l.source)===n.id)rel.push(byId[idOf(l.target)].l+' ('+l.r+')');else if(idOf(l.target)===n.id)rin.push(byId[idOf(l.source)].l+' ('+l.r+')');});
+  const B=[{t:'h',n:1,x:n.l},{t:'p',x:'**Tipo:** '+GROUPS[n.g]+(n.pd?' (pendiente o por crear)':'')},{t:'p',x:'**Fuente:** '+n.s},{t:'p',x:n.d}];
+  if(n.flag)B.push({t:'q',x:'Revisar: '+n.flag});
+  if(rel.length){B.push({t:'h',n:2,x:'Se conecta con'});B.push({t:'ul',it:rel});}
+  if(rin.length){B.push({t:'h',n:2,x:'Conectado desde'});B.push({t:'ul',it:rin});}
+  return binDef('ficha-'+n.id+'.pdf','application/pdf',()=>toPDF(B,n.l),'pdf');
+}
+GEN.allpdf=binDef('proyecto-completo.pdf','application/pdf',()=>{
+  const B=[{t:'h',n:1,x:'Proyecto Software: todo en un PDF'},{t:'p',x:'Generado el '+TODAY+'. Incluye la descripción, las instrucciones, el contexto de la empresa, la memoria del proyecto y el informe de puntos a revisar.'}];
+  [['desc','Descripción del proyecto'],['inst','Instrucciones del proyecto'],['ctx','Contexto de la empresa'],['mem','Memoria del proyecto']].forEach(([k,t])=>{B.push({t:'pb'});B.push({t:'h',n:1,x:t});parseMD(PROJDOCS[k].text).forEach(b=>{if(!(b.t==='h'&&b.n===1))B.push(b);});});
+  B.push({t:'pb'});parseMD(genRevMD()).forEach(b=>B.push(b));
+  return toPDF(B,'Proyecto Software');
+},'pdf');
 
 /* ---------- Nodos de archivo en el grafo ---------- */
 FILES.ctx=FMT.ctx.md; FILES.ctx2=FMT.ctx2.md; FILES.inst=FMT.inst.md; FILES.proj=FMT.desc.md; FILES.mem=FMT.mem.md; FILES.img=IMGFMT.jpg;
@@ -6096,6 +6126,7 @@ F('g_rel','relaciones.csv','Generado desde este grafo','Una fila por relación e
 F('g_pend','pendientes.csv','Generado desde la sección 9 y 5','Decisiones abiertas y documentos por crear, con lo que toca cada uno.',GEN.pend,'s9','lista');
 F('g_rev','a-revisar.md','Generado desde este grafo','Informe con los puntos a revisar y los pendientes abiertos.',GEN.rev,'proj','informe');
 F('g_revpdf','a-revisar.pdf','Generado desde este grafo','El informe de puntos a revisar en PDF.',GEN.revpdf,'g_rev','versión PDF');
+F('g_allpdf','proyecto-completo.pdf','Todo el proyecto','Un solo PDF con la descripción, las instrucciones, el contexto, la memoria y el informe de puntos a revisar.',GEN.allpdf,'proj','contiene todo');
 F('g_zip','proyecto-completo.zip','Todo el proyecto','Un ZIP con los documentos en MD, PDF y DOCX, la imagen, los CSV, el JSON y el informe.',GEN.zip,'proj','contiene todo');
 L('g_pend','s5','lista');
 ALT.g_rev=[GEN.rev,GEN.revpdf];
@@ -6252,11 +6283,12 @@ function renderPanel(d){
   const inn=links.filter(l=>idOf(l.target)===d.id).map(l=>relItem(byId[idOf(l.source)],l.r,'←'));
   const def=FILES[d.id]; let files='';
   if(def){
-    files='<h3>Archivo</h3><div class="dl">'+dlButtons(def,true)+'</div><div id="dlstatus" class="muted" role="status"></div>';
+    files='<h3>Archivo</h3><div class="dl">'+dlButtons(def,true)+'</div>'+(def.text?'<div class="dl" style="margin-top:6px"><button type="button" class="btn primary" data-dl="'+dlKey(pdfOf(def))+'">Descargar también en PDF</button></div>':'')+'<div id="dlstatus" class="muted" role="status"></div>';
     const alt=(ALT[d.id]||[]).filter(a=>a!==def);
     if(alt.length)files+='<h3>Descargar como</h3><div class="dl">'+alt.map(a=>'<button type="button" class="btn" data-dl="'+dlKey(a)+'">'+(EXT_LABEL[a.kind]||a.kind)+'</button>').join('')+'</div>';
     files+='<h3>Vista previa</h3>'+preview(def);
   }
+  if(!def)files='<h3>Ficha</h3><div class="dl"><button type="button" class="btn primary" data-dl="'+dlKey(fichaDef(d))+'">Descargar esta ficha en PDF</button></div><div id="dlstatus" class="muted" role="status"></div>';
   panel.innerHTML='<span class="tag" style="--col:'+COL[d.g]+'"><i></i>'+esc(GROUPS[d.g])+(d.pd?' · pendiente o por crear':'')+'</span><h2>'+esc(d.l)+'</h2><div class="src">'+esc(d.s)+'</div><p>'+esc(d.d)+'</p>'
     +(d.flag?'<div class="warn"><b>A revisar</b>'+esc(d.flag)+'</div>':'')+files
     +'<h3>Relaciones ('+(out.length+inn.length)+')</h3><ul class="rel">'+out.join('')+inn.join('')+'</ul>';
@@ -6267,7 +6299,7 @@ function showHome(){
   const flagged=nodes.filter(n=>n.flag), fl=nodes.filter(n=>n.g==='archivo');
   const counts=Object.keys(GROUPS).map(g=>'<li><button type="button" style="pointer-events:none"><span class="dot" style="--col:'+COL[g]+'"></span><span>'+esc(GROUPS[g])+'</span><small>'+nodes.filter(n=>n.g===g).length+'</small></button></li>').join('');
   panel.innerHTML='<h2>Proyecto Software</h2><p>Empresa de desarrollo de software de Julio y Santiago para negocios locales. Este grafo reúne los 2 documentos, la imagen, las instrucciones, la memoria del proyecto y las ideas que contienen.</p>'
-   +'<h3>Archivos ('+(fl.length+5)+')</h3><div class="dl">'+dlButtons(GEN.zip,true)+'</div><div id="dlstatus" class="muted" role="status"></div>'
+   +'<h3>Archivos ('+(fl.length+5)+')</h3><div class="dl">'+dlButtons(GEN.allpdf,true)+dlButtons(GEN.zip,false)+'</div><div id="dlstatus" class="muted" role="status"></div>'
    +'<ul class="rel">'+['ctx','ctx2','inst','img','mem'].concat(fl.map(n=>n.id)).map(id=>{const n=byId[id],f=FILES[id];return '<li><button type="button" data-id="'+id+'"><span class="dot" style="--col:'+COL[n.g]+'"></span><span>'+esc(f?f.name:n.l)+'</span><small>'+(EXT_LABEL[f?f.kind:'']||'')+'</small></button></li>';}).join('')+'</ul>'
    +'<h3>A revisar ('+flagged.length+')</h3><ul class="rel">'+flagged.map(n=>'<li><button type="button" data-id="'+n.id+'"><span class="dot" style="--col:'+COL[n.g]+'"></span><span>'+esc(n.l)+'</span></button></li>').join('')+'</ul>'
    +'<h3>Nodos por tipo</h3><ul class="rel">'+counts+'</ul>';
