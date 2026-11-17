@@ -252,7 +252,7 @@ L('img','mi_soft','dibujo');L('mi_soft','mi_loc','rama');L('mi_soft','mi_emp','r
 ['mi_ig','mi_mail','mi_wa','mi_nom'].forEach(x=>L('mi_emp',x,'dato'));
 L('mi_loc','e1','mismo concepto');L('mi_loc','e2','búsqueda');L('mi_loc','e3','contacto');
 L('e2','mi_lista','produce');L('mi_lista','mi_emp','contiene');L('e2','mi_datos','produce');L('mi_datos','e5','lleva a');L('mi_datos','mi_clien','lleva a');L('e5','mi_clien','amplía');
-L('mi_nom','pd_nombre','mismo concepto');L('mi_app','sv_soft','mismo concepto');
+L('mi_app','sv_soft','mismo concepto');
 L('n_rest','mi_webapp','dibujo');L('n_barb','mi_appb','dibujo');L('mi_webapp','sv_soft','tipo de');L('mi_appb','sv_soft','tipo de');
 L('mi_lista','r_ley','datos de terceros');
 </script>
@@ -5969,7 +5969,7 @@ function toPDF(B,title,imgs,land){
   B.forEach(b=>{
     if(b.t==='pb'){doc.addPage();y=20;return;}
     if(b.t==='h'){y+=b.n===1?2:5;ensure(14);txt(plain(b.x),[0,20,15,13,12][b.n],'bold',0,b.n===1?[20,24,30]:[31,111,209],2);
-      if(b.n<=2){doc.setDrawColor(210,210,205);doc.line(M,y-1,M+TW,y-1);y+=2;}}
+      if(b.n<=2){const sz=[0,20,15][b.n],yl=y-2-sz*.3528*1.4+2.6;doc.setDrawColor(210,210,205);doc.line(M,yl,M+TW,yl);y+=1.5;}}
     else if(b.t==='p')txt(plain(b.x),10.5,'normal',0,null,2.5);
     else if(b.t==='q'){const y0=y;txt(plain(b.x),10,'italic',4,[90,90,90],2.5);doc.setDrawColor(201,154,10);doc.setLineWidth(.8);doc.line(M+1,y0-3.5,M+1,y-3);doc.setLineWidth(.2);}
     else if(b.t==='ul')b.it.forEach(x=>{ensure(6);doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.text('•',M+2,y);txt(plain(x),10.5,'normal',7,null,1);}),y+=1.5;
@@ -6063,7 +6063,20 @@ function docFormats(key){
     docx:binDef(base+'.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document',()=>new Blob([toDOCX(B())],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}))
   };
 }
-const FMT={ctx:docFormats('ctx'),ctx2:docFormats('ctx2'),inst:docFormats('inst'),desc:docFormats('desc'),mem:docFormats('mem')};
+PROJDOCS.gdoc={base:'grafo-de-la-empresa',title:'Grafo de la empresa',text:'# Grafo de la empresa\n\nEn esta página está el grafo con absolutamente todo el contenido de la empresa. Es importante acudir a él cuando se necesite información. Cuando se haga algún cambio, o se construya algo para la empresa, tiene que verse reflejado en el grafo.\n\nhttps://julxx1.github.io/Software-Graph/#3d\n'};
+PROJDOCS.inst.text+='\nEs importante actualizar el grafo de la empresa constantemente, que cualquier tipo de cambios se vean reflejados en él.\n';
+byId.inst.d+=' También pide mantener el grafo de la empresa actualizado con cualquier cambio.';
+const EXTRA={
+ mi_emp:'Los datos de cada local prospecto que el agente recopila: nombre, Instagram, mail y WhatsApp (documento, sección 6).',
+ mi_ig:'Instagram del local prospecto: uno de los datos de contacto que el agente reúne para la lista (documento, sección 6).',
+ mi_mail:'Correo del local prospecto: dato que el agente reúne para la lista. El mail es el canal de contacto inicial, manual (documento, sección 6).',
+ mi_wa:'WhatsApp del local prospecto: dato que el agente reúne para la lista. Contactar en frío y masivo por aquí puede bloquear el número (documento, sección 6).',
+ mi_nom:'Nombre del local prospecto: dato que el agente reúne para la lista. No es el nombre de la empresa de ustedes, que sigue pendiente.'
+};
+Object.keys(EXTRA).forEach(k=>{byId[k].d=EXTRA[k];});
+N('gdoc','Grafo de la empresa','proyecto','Doc del proyecto','Documento que apunta a este grafo como fuente con todo el contenido de la empresa. Pide acudir a él para buscar información y reflejar aquí cualquier cambio o cosa construida.',{file:1});
+L('proj','gdoc','documento'); L('gdoc','inst','lo exige');
+const FMT={gdoc:docFormats('gdoc'),ctx:docFormats('ctx'),ctx2:docFormats('ctx2'),inst:docFormats('inst'),desc:docFormats('desc'),mem:docFormats('mem')};
 const IMGFMT={jpg:binDef('mapa-mental.jpg','image/jpeg',()=>new Blob([b64u8()],{type:'image/jpeg'}),'jpg'),pdf:binDef('mapa-mental.pdf','application/pdf',()=>imagePDF('Mapa mental original del proyecto Software',dataUri),'pdf')};
 const GEN={
   json:textDef('grafo-proyecto.json','application/json',genJSON),
@@ -6077,7 +6090,7 @@ GEN.zip=binDef('proyecto-completo.zip','application/zip',()=>{
   const z={}, put=(n,v)=>{z['proyecto-software/'+n]=typeof v==='string'?strToU8(v):v;};
   const bl=async f=>new Uint8Array(await (await f.make()).arrayBuffer());
   const jobs=[];
-  ['ctx','inst','desc','mem'].forEach(k=>['md','pdf','docx'].forEach(f=>{const def=FMT[k][f];jobs.push(Promise.resolve(def.make()).then(async v=>put(def.name,typeof v==='string'?v:new Uint8Array(await v.arrayBuffer()))));}));
+  ['ctx','inst','desc','mem','gdoc'].forEach(k=>['md','pdf','docx'].forEach(f=>{const def=FMT[k][f];jobs.push(Promise.resolve(def.make()).then(async v=>put(def.name,typeof v==='string'?v:new Uint8Array(await v.arrayBuffer()))));}));
   put('mapa-mental.jpg',b64u8());
   jobs.push(Promise.resolve(GEN.allpdf.make()).then(async v=>put('proyecto-completo.pdf',new Uint8Array(await v.arrayBuffer()))));
   ['json','nodos','rel','pend','rev'].forEach(k=>put(GEN[k].name,GEN[k].get()));
@@ -6097,24 +6110,35 @@ function pdfOf(def){
   else make=()=>toPDF([{t:'h',n:1,x:title},{t:'pre',lines:String(def.get()).split('\n')}],title);
   return def.__pdf=binDef(name,'application/pdf',make,'pdf');
 }
+const GDESC={proyecto:'Archivo o dato general del proyecto Software.',seccion:'Sección del documento base contexto-empresa.md, la fuente de verdad de la empresa.',persona:'Uno de los dos socios de la empresa.',mercado:'Tipo de negocio al que se le quiere vender.',oferta:'Lo que la empresa vende: servicios y paquetes.',embudo:'Paso del embudo comercial o del plan inmediato, que va de encontrar locales a vender y escalar.',riesgo:'Riesgo que el documento pide vigilar.',pendiente:'Decisión todavía abierta, marcada [Pendiente] en el documento: no se debe asumir como hecha.',decision:'Decisión tomada, regla de trabajo o documento por mantener.',mapa:'Idea tomada del mapa mental dibujado a mano (la imagen del proyecto).',memoria:'Dato guardado en la memoria del proyecto, no escrito en el documento base.',archivo:'Archivo generado a partir del contenido del grafo.'};
+function pathTo(id){
+  const prev={proj:null},q=['proj'];
+  while(q.length){const c=q.shift();if(c===id)break;links.forEach(l=>{const s=idOf(l.source),t=idOf(l.target);[[s,t],[t,s]].forEach(([x,y])=>{if(x===c&&!(y in prev)&&byId[y].g!=='archivo'){prev[y]=c;q.push(y);}});});}
+  const p=[];let c=id;while(c){p.unshift(byId[c].l);c=prev[c];}return id in prev?p.join(' > '):byId[id].l;
+}
+function secText(n){const m=n.s.match(/^contexto-empresa\.md §(\d+)/);if(!m)return null;const r=new RegExp('## '+m[1]+'\\. [^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)').exec(PROJDOCS.ctx.text);return r?r[1].trim():null;}
 function fichaDef(n){
-  const rel=[],rin=[];links.forEach(l=>{if(idOf(l.source)===n.id)rel.push(byId[idOf(l.target)].l+' ('+l.r+')');else if(idOf(l.target)===n.id)rin.push(byId[idOf(l.source)].l+' ('+l.r+')');});
-  const B=[{t:'h',n:1,x:n.l},{t:'p',x:'**Tipo:** '+GROUPS[n.g]+(n.pd?' (pendiente o por crear)':'')},{t:'p',x:'**Fuente:** '+n.s},{t:'p',x:n.d}];
-  if(n.flag)B.push({t:'q',x:'Revisar: '+n.flag});
-  if(rel.length){B.push({t:'h',n:2,x:'Se conecta con'});B.push({t:'ul',it:rel});}
-  if(rin.length){B.push({t:'h',n:2,x:'Conectado desde'});B.push({t:'ul',it:rin});}
+  const out=[],inn=[];links.forEach(l=>{if(idOf(l.source)===n.id)out.push(byId[idOf(l.target)].l+' (relación: '+l.r+')');else if(idOf(l.target)===n.id)inn.push(byId[idOf(l.source)].l+' (relación: '+l.r+', apunta a este nodo)');});
+  const sec=secText(n);
+  const B=[{t:'h',n:1,x:n.l},{t:'p',x:'**Qué es:** '+n.d},{t:'p',x:'**Tipo:** '+GROUPS[n.g]+(n.pd?' (pendiente o por crear)':'')+'. '+GDESC[n.g]},{t:'p',x:'**Fuente:** '+n.s}];
+  if(n.flag)B.push({t:'q',x:'A revisar: '+n.flag});
+  B.push({t:'h',n:2,x:'Dónde encaja'},{t:'p',x:pathTo(n.id)});
+  if(sec){B.push({t:'h',n:2,x:'Lo que dice el documento base'});parseMD(sec).forEach(b=>B.push(b));}
+  if(out.length){B.push({t:'h',n:2,x:'Se conecta con'});B.push({t:'ul',it:out});}
+  if(inn.length){B.push({t:'h',n:2,x:'Conectado desde'});B.push({t:'ul',it:inn});}
+  B.push({t:'p',x:'Ficha generada desde el Mapa del proyecto Software el '+TODAY+'.'});
   return binDef('ficha-'+n.id+'.pdf','application/pdf',()=>toPDF(B,n.l),'pdf');
 }
 GEN.allpdf=binDef('proyecto-completo.pdf','application/pdf',()=>{
   const B=[{t:'h',n:1,x:'Proyecto Software: todo en un PDF'},{t:'p',x:'Generado el '+TODAY+'. Incluye la descripción, las instrucciones, el contexto de la empresa, la memoria del proyecto y el informe de puntos a revisar.'}];
-  [['desc','Descripción del proyecto'],['inst','Instrucciones del proyecto'],['ctx','Contexto de la empresa'],['mem','Memoria del proyecto']].forEach(([k,t])=>{B.push({t:'pb'});B.push({t:'h',n:1,x:t});parseMD(PROJDOCS[k].text).forEach(b=>{if(!(b.t==='h'&&b.n===1))B.push(b);});});
+  [['desc','Descripción del proyecto'],['inst','Instrucciones del proyecto'],['gdoc','Grafo de la empresa'],['ctx','Contexto de la empresa'],['mem','Memoria del proyecto']].forEach(([k,t])=>{B.push({t:'pb'});B.push({t:'h',n:1,x:t});parseMD(PROJDOCS[k].text).forEach(b=>{if(!(b.t==='h'&&b.n===1))B.push(b);});});
   B.push({t:'pb'});parseMD(genRevMD()).forEach(b=>B.push(b));
   return toPDF(B,'Proyecto Software');
 },'pdf');
 
 /* ---------- Nodos de archivo en el grafo ---------- */
-FILES.ctx=FMT.ctx.md; FILES.ctx2=FMT.ctx2.md; FILES.inst=FMT.inst.md; FILES.proj=FMT.desc.md; FILES.mem=FMT.mem.md; FILES.img=IMGFMT.jpg;
-const ALT={ctx:Object.values(FMT.ctx),ctx2:Object.values(FMT.ctx2),inst:Object.values(FMT.inst),proj:Object.values(FMT.desc),mem:Object.values(FMT.mem),img:Object.values(IMGFMT)};
+FILES.gdoc=FMT.gdoc.md; FILES.ctx=FMT.ctx.md; FILES.ctx2=FMT.ctx2.md; FILES.inst=FMT.inst.md; FILES.proj=FMT.desc.md; FILES.mem=FMT.mem.md; FILES.img=IMGFMT.jpg;
+const ALT={gdoc:Object.values(FMT.gdoc),ctx:Object.values(FMT.ctx),ctx2:Object.values(FMT.ctx2),inst:Object.values(FMT.inst),proj:Object.values(FMT.desc),mem:Object.values(FMT.mem),img:Object.values(IMGFMT)};
 function F(id,label,src,detail,def,parent,rel){N(id,label,'archivo',src,detail,{box:1});FILES[id]=def;if(parent)L(parent,id,rel);}
 F('f_ctx_pdf','contexto-empresa.pdf','Generado desde contexto-empresa.md','Versión PDF del documento base, lista para imprimir o enviar.',FMT.ctx.pdf,'ctx','versión PDF');
 F('f_ctx_docx','contexto-empresa.docx','Generado desde contexto-empresa.md','Versión Word editable del documento base.',FMT.ctx.docx,'ctx','versión Word');
@@ -6304,8 +6328,8 @@ function showHome(){
   const flagged=nodes.filter(n=>n.flag), fl=nodes.filter(n=>n.g==='archivo');
   const counts=Object.keys(GROUPS).map(g=>'<li><button type="button" style="pointer-events:none"><span class="dot" style="--col:'+COL[g]+'"></span><span>'+esc(GROUPS[g])+'</span><small>'+nodes.filter(n=>n.g===g).length+'</small></button></li>').join('');
   panel.innerHTML='<h2>Proyecto Software</h2><p>Empresa de desarrollo de software de Julio y Santiago para negocios locales. Este grafo reúne los 2 documentos, la imagen, las instrucciones, la memoria del proyecto y las ideas que contienen.</p>'
-   +'<h3>Archivos ('+(fl.length+5)+')</h3><div class="dl">'+dlButtons(GEN.allpdf,true)+dlButtons(GEN.zip,false)+'</div><div id="dlstatus" class="muted" role="status"></div>'
-   +'<ul class="rel">'+['ctx','ctx2','inst','img','mem'].concat(fl.map(n=>n.id)).map(id=>{const n=byId[id],f=FILES[id];return '<li><button type="button" data-id="'+id+'"><span class="dot" style="--col:'+COL[n.g]+'"></span><span>'+esc(f?f.name:n.l)+'</span><small>'+(EXT_LABEL[f?f.kind:'']||'')+'</small></button></li>';}).join('')+'</ul>'
+   +'<h3>Archivos ('+(fl.length+6)+')</h3><div class="dl">'+dlButtons(GEN.allpdf,true)+dlButtons(GEN.zip,false)+'</div><div id="dlstatus" class="muted" role="status"></div>'
+   +'<ul class="rel">'+['ctx','ctx2','inst','gdoc','img','mem'].concat(fl.map(n=>n.id)).map(id=>{const n=byId[id],f=FILES[id];return '<li><button type="button" data-id="'+id+'"><span class="dot" style="--col:'+COL[n.g]+'"></span><span>'+esc(f?f.name:n.l)+'</span><small>'+(EXT_LABEL[f?f.kind:'']||'')+'</small></button></li>';}).join('')+'</ul>'
    +'<h3>A revisar ('+flagged.length+')</h3><ul class="rel">'+flagged.map(n=>'<li><button type="button" data-id="'+n.id+'"><span class="dot" style="--col:'+COL[n.g]+'"></span><span>'+esc(n.l)+'</span></button></li>').join('')+'</ul>'
    +'<h3>Nodos por tipo</h3><ul class="rel">'+counts+'</ul>';
   bindPanel();
