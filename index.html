@@ -6311,8 +6311,7 @@ async function doDownload(def){
   try{
     const data=await def.make(); const blob=data instanceof Blob?data:new Blob([data],{type:def.mime});
     if(CAP){await CAP.save({filename:def.name,data:blob});setStatus('Listo: '+def.name);}
-    else if(CAN_FILE){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=def.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);setStatus('Descargado: '+def.name);}
-    else setStatus('Las descargas no están disponibles en esta vista. Abre el archivo .html local o usa Copiar texto.');
+    else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=def.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);setStatus('Descargado: '+def.name);}
   }catch(e){setStatus(e&&e.code==='declined'?'Descarga cancelada.':'No se pudo descargar: '+((e&&e.message)||e));}
 }
 async function doCopy(def){try{await navigator.clipboard.writeText(String(def.get()));setStatus('Texto copiado.');}catch(e){setStatus('El navegador no permitió copiar.');}}
